@@ -13,16 +13,37 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Add upstream remote
+      - name: Set up commit cache
+        uses: actions/cache@v4
+        with:
+          path: last_commit.txt
+          key: last-commit-cache
+
+      - name: Add upstream and check for new commits
         run: |
           git remote add upstream https://github.com/WatWowMap/wwm-uicons.git
           git fetch upstream
-          git log HEAD..upstream/main --oneline > new_commits.txt
 
-      - name: Notify Discord if there are new commits
-        run: |
-          if [ -s new_commits.txt ]; then
-            curl -H "Content-Type: application/json" -X POST \
-            -d "{\"content\": \"🚨 New commits in upstream repo:\n$(cat new_commits.txt)\"}" \
-            ${{ secrets.DISCORD_WEBHOOK }}
+          # Get latest commit SHA from upstream
+          upstream_sha=$(git rev-parse upstream/main)
+
+          # Create file if not exists
+          touch last_commit.txt
+          last_sha=$(cat last_commit.txt || echo "")
+
+          echo "Last SHA: $last_sha"
+          echo "Upstream SHA: $upstream_sha"
+
+          if [ "$upstream_sha" != "$last_sha" ]; then
+            echo "$upstream_sha" > last_commit.txt
+            echo "NEW_COMMITS=true" >> $GITHUB_ENV
           fi
+
+      - name: Notify Discord if new commits
+        if: env.NEW_COMMITS == 'true'
+        run: |
+          git log $last_sha..$upstream_sha --oneline > new_commits.txt
+
+          curl -H "Content-Type: application/json" -X POST \
+          -d "{\"content\": \"🚨 New commits in upstream repo:\n$(cat new_commits.txt)\"}" \
+          ${{ secrets.DISCORD_WEBHOOK }}
