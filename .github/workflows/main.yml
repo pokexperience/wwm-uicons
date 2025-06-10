@@ -42,7 +42,7 @@ jobs:
       - name: Notify Discord if new commits
         if: env.NEW_COMMITS == 'true'
         run: |
-          git log $last_sha..$upstream_sha --oneline > new_commits.txt
+          git log --oneline $last_sha..$upstream_sha > new_commits.txt
 
           curl -H "Content-Type: application/json" -X POST \
           -d "{\"content\": \"🚨 New commits in upstream repo:\n$(cat new_commits.txt)\"}" \
