@@ -20,30 +20,31 @@ jobs:
           key: last-commit-cache
 
       - name: Add upstream and check for new commits
-        run: |
-          git remote add upstream https://github.com/WatWowMap/wwm-uicons.git
-          git fetch upstream
-
-          # Get latest commit SHA from upstream
-          upstream_sha=$(git rev-parse upstream/main)
-
-          # Create file if not exists
-          touch last_commit.txt
-          last_sha=$(cat last_commit.txt || echo "")
-
-          echo "Last SHA: $last_sha"
-          echo "Upstream SHA: $upstream_sha"
-
-          if [ "$upstream_sha" != "$last_sha" ]; then
-            echo "$upstream_sha" > last_commit.txt
-            echo "NEW_COMMITS=true" >> $GITHUB_ENV
-          fi
+      	run: |
+      		git remote add upstream https://github.com/WatWowMap/wwm-uicons.git
+      		git fetch upstream
+      
+      		# Get latest commit SHA from upstream
+      		upstream_sha=$(git rev-parse upstream/main)
+      		touch last_commit.txt
+      		last_sha=$(cat last_commit.txt || echo "")
+      
+      		echo "Last SHA: $last_sha"
+      		echo "Upstream SHA: $upstream_sha"
+      
+      		# Save them to GitHub environment
+      		echo "last_sha=$last_sha" >> $GITHUB_ENV
+      		echo "upstream_sha=$upstream_sha" >> $GITHUB_ENV
+      
+      		if [ "$upstream_sha" != "$last_sha" ]; then
+      			echo "$upstream_sha" > last_commit.txt
+      			echo "NEW_COMMITS=true" >> $GITHUB_ENV
+      		fi
 
       - name: Notify Discord if new commits
-        if: env.NEW_COMMITS == 'true'
-        run: |
-          git log --oneline $last_sha..$upstream_sha > new_commits.txt
-
-          curl -H "Content-Type: application/json" -X POST \
-          -d "{\"content\": \"🚨 New commits in upstream repo:\n$(cat new_commits.txt)\"}" \
-          ${{ secrets.DISCORD_WEBHOOK }}
+      	if: env.NEW_COMMITS == 'true'
+      	run: |
+      		git log --oneline ${{ env.last_sha }}..${{ env.upstream_sha }} > new_commits.txt
+      		curl -H "Content-Type: application/json" -X POST \
+      		-d "{\"content\": \"🚨 New commits in upstream repo:\n$(cat new_commits.txt)\"}" \
+      		${{ secrets.DISCORD_WEBHOOK }}
